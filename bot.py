@@ -1,29 +1,28 @@
 import os
 import asyncio
-import nest_asyncio  
 from rembg import remove
 from PIL import Image
 from io import BytesIO
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
-from config import TELEGRAM_BOT_TOKEN  # Import bot token from config.py
+from config import TELEGRAM_BOT_TOKEN
 
-nest_asyncio.apply()
+# Get PORT from environment variables (for deployment)
+PORT = int(os.getenv("PORT", 5000))
+WEBHOOK_URL = "https://your-deployment-url.com/"  # Replace with your actual webhook URL
 
 # Function to remove background
 def remove_background(image_data):
     try:
-        input_image = Image.open(BytesIO(image_data))
+        input_image = Image.open(BytesIO(image_data)).convert("RGBA")  
         output_image = remove(input_image)
 
-        # Convert output image to bytes
         img_byte_arr = BytesIO()
         output_image.save(img_byte_arr, format="PNG")
         img_byte_arr.seek(0)
-
         return img_byte_arr
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error removing background: {e}")
         return None
 
 # Start command
@@ -32,11 +31,10 @@ async def start(update: Update, context):
 
 # Handle received images
 async def handle_photo(update: Update, context):
-    photo = update.message.photo[-1]  # Get the highest quality image
+    photo = update.message.photo[-1]  
     file = await context.bot.get_file(photo.file_id)
-    image_bytes = await file.download_as_bytearray()
+    image_bytes = await file.download_as_bytes()
 
-    # Remove background
     output_image = remove_background(image_bytes)
 
     if output_image:
@@ -53,9 +51,14 @@ async def main():
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 
     print("🤖 Bot is running...")
-    await app.run_polling()
 
-# Proper event loop handling
+    # For deployment using webhooks
+    await app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        webhook_url=WEBHOOK_URL + TELEGRAM_BOT_TOKEN
+    )
+
+# Run the bot
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())  # Correct way to start the bot
+    asyncio.run(main())
