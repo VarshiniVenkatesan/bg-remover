@@ -4,7 +4,7 @@ services:
     env: python
     buildCommand: |
       pip install -r requirements.txt
-    startCommand: python bot.py
+    startCommand: ./start.sh
     plan: free
     envVars:
       - key: TELEGRAM_BOT_TOKEN
